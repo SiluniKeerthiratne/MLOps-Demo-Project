@@ -1,0 +1,11 @@
+{
+  "accuracy": 1.0,
+  "f1_macro": 1.0,
+  "train_accuracy": 1.0,
+  "precision_class_0": 1.0,
+  "recall_class_0": 1.0,
+  "precision_class_1": 1.0,
+  "recall_class_1": 1.0,
+  "precision_class_2": 1.0,
+  "recall_class_2": 1.0
+}

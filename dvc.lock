@@ -1,0 +1,65 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python -m src.preprocess
+    deps:
+    - path: config.yaml
+      hash: md5
+      md5: 1f3824e8dc16fbbc5b5b72af983f2b50
+      size: 738
+    - path: data/raw/wine.csv
+      hash: md5
+      md5: 87a206c70a60bb7431293486bcd185bd
+      size: 17752
+    - path: src/preprocess.py
+      hash: md5
+      md5: 49ecacfa594e9d6aebad0d30e676a201
+      size: 2276
+    params:
+      params.yaml:
+        seed: 42
+        test_size: 0.2
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 1dc1008b250fc839a707c9a457c8a1e6.dir
+      size: 19512
+      nfiles: 3
+  train:
+    cmd: python -m src.train
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 1dc1008b250fc839a707c9a457c8a1e6.dir
+      size: 19512
+      nfiles: 3
+    - path: src/registry.py
+      hash: md5
+      md5: 73dbbdfbc7b1bdaa381c4f485a628769
+      size: 4026
+    - path: src/train.py
+      hash: md5
+      md5: e844bf7186bac542ca15d9304d23d703
+      size: 8077
+    - path: src/utils.py
+      hash: md5
+      md5: 1938f65852d0346dbe694ada6eb19e23
+      size: 2684
+    params:
+      params.yaml:
+        model:
+          type: random_forest
+          random_forest:
+            n_estimators: 100
+            max_depth:
+            min_samples_leaf: 1
+          logreg:
+            C: 1.0
+            max_iter: 1000
+        seed: 42
+        test_size: 0.2
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 11b59dba0f89fc2ae509d390270bcd4b
+      size: 225

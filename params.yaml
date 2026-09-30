@@ -1,0 +1,12 @@
+# Model and split parameters (tracked by DVC).
+model:
+  type: random_forest      # random_forest | logreg
+  random_forest:
+    n_estimators: 100
+    max_depth: null
+    min_samples_leaf: 1
+  logreg:
+    C: 1.0
+    max_iter: 1000
+seed: 42
+test_size: 0.2

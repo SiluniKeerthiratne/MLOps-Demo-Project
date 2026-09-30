@@ -1,0 +1,26 @@
+stages:
+  preprocess:
+    cmd: python -m src.preprocess
+    deps:
+      - data/raw/wine.csv
+      - src/preprocess.py
+      - config.yaml
+    params:
+      - seed
+      - test_size
+    outs:
+      - data/processed
+  train:
+    cmd: python -m src.train
+    deps:
+      - data/processed
+      - src/train.py
+      - src/registry.py
+      - src/utils.py
+    params:
+      - model
+      - seed
+      - test_size
+    metrics:
+      - metrics.json:
+          cache: false

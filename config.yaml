@@ -1,0 +1,35 @@
+# Static project settings: paths, names, thresholds. Model hyperparameters live in params.yaml.
+paths:
+  raw_data: data/raw/wine.csv
+  raw_dvc: data/raw/wine.csv.dvc
+  processed_dir: data/processed
+  models_dir: models
+  metrics: metrics.json
+  prediction_log: logs/predictions.jsonl
+
+data:
+  target: target
+  features:
+    - alcohol
+    - malic_acid
+    - ash
+    - alcalinity_of_ash
+    - magnesium
+    - total_phenols
+    - flavanoids
+    - nonflavanoid_phenols
+    - proanthocyanins
+    - color_intensity
+    - hue
+    - od280_od315_of_diluted_wines
+    - proline
+
+mlflow:
+  experiment: wine-classifier
+  registered_model: wine-classifier
+  aliases:
+    staging: staging
+    production: production
+
+quality_gate:
+  min_macro_f1: 0.90

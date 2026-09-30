@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  POETRY_VERSION: "2.2.1"
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+  DVC_NO_ANALYTICS: "1"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags (data-v1, data-v2) are used to verify dataset hashes
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install "poetry==${POETRY_VERSION}"
+
+      - name: Check poetry.lock is in sync with pyproject.toml
+        run: poetry check --lock
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Lint
+        run: poetry run ruff check .
+
+      - name: Unit tests
+        run: poetry run pytest -q
+
+      # Pipeline on a file-based MLflow store (SQLite + local artifacts). No server, no secrets.
+      - name: Pipeline (data, preprocess, train, evaluate, promote, export)
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///${{ github.workspace }}/mlflow-local/mlflow.db
+        run: |
+          mkdir -p mlflow-local
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          poetry run bash scripts/data.sh v1
+          poetry run dvc repro preprocess
+          poetry run python -m src.train
+          poetry run python -m src.evaluate
+          poetry run python -m src.promote
+          poetry run python -m src.export
+          cat models/current.json
+
+      - name: Build images
+        run: |
+          docker build --target api -t wine-api .
+          docker build --target trainer -t wine-trainer .
+          docker build -f docker/mlflow.Dockerfile -t wine-mlflow .
+
+      - name: API image is non-root and has no training/dev dependencies
+        run: |
+          test "$(docker run --rm --entrypoint id wine-api -u)" != "0"
+          ! docker run --rm --entrypoint python wine-api -c "import mlflow"
+          ! docker run --rm --entrypoint python wine-api -c "import pytest"
+          ! docker run --rm --entrypoint sh wine-api -c "command -v poetry"
+
+      - name: Smoke test the API container
+        run: |
+          chmod 777 logs
+          docker run -d --name api -p 8000:8000 \
+            -v "$PWD/models:/app/models:ro" -v "$PWD/logs:/app/logs" wine-api
+          for i in $(seq 1 30); do
+            curl -sf localhost:8000/health && break
+            sleep 2
+          done
+          curl -sf localhost:8000/health | grep '"status":"ok"'
+          BODY='{"features":{"alcohol":13.2,"malic_acid":2.77,"ash":2.51,"alcalinity_of_ash":18.5,"magnesium":98,"total_phenols":1.96,"flavanoids":0.5,"nonflavanoid_phenols":0.5,"proanthocyanins":1.4,"color_intensity":5.0,"hue":0.9,"od280_od315_of_diluted_wines":2.0,"proline":1000}}'
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8000/predict \
+            -H 'content-type: application/json' -d "$BODY")
+          test "$CODE" = "200"
+          test "$(wc -l < logs/predictions.jsonl)" -eq 1
+          docker logs api
